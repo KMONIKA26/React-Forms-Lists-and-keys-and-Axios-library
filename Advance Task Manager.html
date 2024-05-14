@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Template</title>
+    <style>
+        body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  color: #333;
+}
+
+form {
+  margin-bottom: 20px;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  background-color: #fff;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+}
+
+button {
+  padding: 5px 10px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+input[type="text"] {
+  padding: 5px;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+}
+
+input[type="checkbox"] {
+  margin-right: 5px;
+}
+
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+  <script src="https://www.unpkg.com/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://www.unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script type="text/babel">
+    class Task extends React.Component {
+  render() {
+    const { title, isCompleted, assignee, onUpdate, onDelete } = this.props;
+
+    return (
+      <div className="task">
+        <h3>{title}</h3>
+        <p>Completed: {isCompleted ? 'Yes' : 'No'}</p>
+        <p>Assignee: {assignee}</p>
+        <button onClick={onUpdate}>Update</button>
+        <button onClick={onDelete}>Delete</button>
+      </div>
+    );
+  }
+}
+
+class TaskForm extends React.Component {
+  state = {
+    title: '',
+    isCompleted: false,
+    assignee: ''
+  };
+
+  handleChange = (event) => {
+    const { name, value } = event.target;
+    this.setState({ [name]: value });
+  };
+
+  handleSubmit = (event) => {
+    event.preventDefault();
+    this.props.onSubmit(this.state);
+    this.setState({ title: '', isCompleted: false, assignee: '' });
+  };
+
+  render() {
+    return (
+      <form onSubmit={this.handleSubmit}>
+        <label>
+          Title:
+          <input type="text" name="title" value={this.state.title} onChange={this.handleChange} />
+        </label>
+        <label>
+          Completed:
+          <input type="checkbox" name="isCompleted" checked={this.state.isCompleted} onChange={this.handleChange} />
+        </label>
+        <label>
+          Assignee:
+          <input type="text" name="assignee" value={this.state.assignee} onChange={this.handleChange} />
+        </label>
+        <button type="submit">Add Task</button>
+      </form>
+    );
+  }
+}
+
+class App extends React.Component {
+  state = {
+    tasks: [],
+    filterAssignee: ''
+  };
+
+  componentDidMount() {
+    this.fetchTasks();
+  }
+
+  fetchTasks = () => {
+    axios.get('http://localhost:3000/todos')
+      .then(response => {
+        this.setState({ tasks: response.data });
+      })
+      .catch(error => {
+        console.error('Error fetching tasks: ', error);
+      });
+  };
+
+  addTask = (task) => {
+    axios.post('http://localhost:3000/todos', task)
+      .then(() => {
+        this.fetchTasks();
+      })
+      .catch(error => {
+        console.error('Error adding task: ', error);
+      });
+  };
+
+  updateTask = (id, updatedTask) => {
+    axios.put(`http://localhost:3000/todos/${id}`, updatedTask)
+      .then(() => {
+        this.fetchTasks();
+      })
+      .catch(error => {
+        console.error('Error updating task: ', error);
+      });
+  };
+
+  deleteTask = (id) => {
+    axios.delete(`http://localhost:3000/todos/${id}`)
+      .then(() => {
+        this.fetchTasks();
+      })
+      .catch(error => {
+        console.error('Error deleting task: ', error);
+      });
+  };
+
+  renderTasks = () => {
+    let tasksToDisplay = this.state.tasks;
+
+    if (this.state.filterAssignee) {
+      tasksToDisplay = tasksToDisplay.filter(task => task.assignee === this.state.filterAssignee);
+    }
+
+    return tasksToDisplay.map(task => (
+      <Task
+        key={task.id}
+        title={task.title}
+        isCompleted={task.isCompleted}
+        assignee={task.assignee}
+        onUpdate={() => this.updateTask(task.id, { ...task, isCompleted: !task.isCompleted })}
+        onDelete={() => this.deleteTask(task.id)}
+      />
+    ));
+  };
+
+  render() {
+    return (
+      <div className="app">
+        <h1>Task Manager</h1>
+        <TaskForm onSubmit={this.addTask} />
+        <button onClick={this.fetchTasks}>Get all tasks</button>
+        <button onClick={() => this.setState({ filterAssignee: '' })}>Show all tasks</button>
+        <input type="text" placeholder="Filter by assignee" onChange={(e) => this.setState({ filterAssignee: e.target.value })} />
+        {this.renderTasks()}
+      </div>
+    );
+  }
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
+
+    
+  </script>
+</html>
